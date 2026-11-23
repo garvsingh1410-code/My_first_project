@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LibraryDesk | Library Management</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">L</span><span>LibraryDesk<small>MANAGEMENT PORTAL</small></span></div>
+    <div class="nav-label">WORKSPACE</div>
+    <a class="nav-link active" href="#dashboard">▦ <span>Dashboard</span></a>
+    <a class="nav-link" href="#books">▤ <span>Books</span></a>
+    <a class="nav-link" href="#members">♙ <span>Members</span></a>
+    <a class="nav-link" href="#circulation">⇄ <span>Issue & Returns</span></a>
+    <div class="sidebar-bottom"><div class="avatar">A</div><div>Administrator<small>Library admin</small></div></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar"><div><span class="eyebrow">LIBRARY MANAGEMENT</span><h1>Overview</h1></div><div class="today" id="today"></div></header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+
+    <section id="dashboard" class="section">
+      <div class="section-heading"><div><span class="eyebrow">AT A GLANCE</span><h2>Dashboard</h2><p class="muted">A live summary of your library records.</p></div></div>
+      <div class="stats-grid">
+        <article class="stat-card"><div class="stat-icon purple">▤</div><div class="stat-label">Book titles</div><div class="stat-number">{{ stats.book_titles }}</div><div class="stat-note">{{ stats.total_copies }} total copies</div></article>
+        <article class="stat-card"><div class="stat-icon green">✓</div><div class="stat-label">Available copies</div><div class="stat-number">{{ stats.available }}</div><div class="stat-note">Ready to issue</div></article>
+        <article class="stat-card"><div class="stat-icon blue">♙</div><div class="stat-label">Members</div><div class="stat-number">{{ stats.members }}</div><div class="stat-note">Registered members</div></article>
+        <article class="stat-card"><div class="stat-icon orange">⇄</div><div class="stat-label">Currently issued</div><div class="stat-number">{{ stats.issued }}</div><div class="stat-note">{{ stats.overdue }} overdue</div></article>
+      </div>
+    </section>
+
+    <section id="books" class="section">
+      <div class="section-heading"><div><span class="eyebrow">COLLECTION</span><h2>Books</h2><p class="muted">Add, search, update and manage your catalogue.</p></div></div>
+      <div class="panel">
+        <h3>Add a book</h3>
+        <form class="form-grid" method="post" action="{{ url_for('books_add') }}">
+          <label>Book title<input name="title" placeholder="e.g. The Alchemist" required></label>
+          <label>Author<input name="author" placeholder="Author name" required></label>
+          <label>ISBN <span class="optional">(optional)</span><input name="isbn" placeholder="ISBN number"></label>
+          <label>Total copies<input name="copies" type="number" min="1" value="1" required></label>
+          <div class="form-action"><button class="btn primary">+ Add book</button></div>
+        </form>
+      </div>
+      <div class="panel">
+        <div class="panel-heading"><h3>Book catalogue</h3>
+          <form class="search" method="get" action="/"><input name="search" value="{{ search }}" placeholder="Search title, author or ISBN"><button class="btn dark">Search</button></form>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Book</th><th>Author</th><th>ISBN</th><th>Available</th><th>Manage</th></tr></thead><tbody>
+        {% for b in books %}
+          <tr><td><strong>{{ b.title }}</strong><small>ID #{{ b.book_id }}</small></td><td>{{ b.author }}</td><td>{{ b.isbn or "—" }}</td><td><span class="pill {{ 'good' if b.available_copies else 'warn' }}">{{ b.available_copies }} / {{ b.total_copies }}</span></td><td>
+            <details><summary class="action-link">Edit</summary><form class="inline-edit" method="post" action="{{ url_for('books_update', book_id=b.book_id) }}"><input name="title" value="{{ b.title }}" required><input name="author" value="{{ b.author }}" required><input name="isbn" value="{{ b.isbn or '' }}" placeholder="ISBN"><input name="total_copies" type="number" min="1" value="{{ b.total_copies }}" required><button class="btn small primary">Save</button></form></details>
+            <form class="inline-form" method="post" action="{{ url_for('books_delete', book_id=b.book_id) }}" onsubmit="return confirm('Delete this book?')"><button class="text-danger">Delete</button></form>
+          </td></tr>
+        {% else %}<tr><td colspan="5" class="empty">No books found.</td></tr>{% endfor %}
+        </tbody></table></div>
+      </div>
+    </section>
+
+    <section id="members" class="section">
+      <div class="section-heading"><div><span class="eyebrow">PEOPLE</span><h2>Members</h2><p class="muted">Register and maintain library members.</p></div></div>
+      <div class="panel">
+        <h3>Register a member</h3>
+        <form class="form-grid" method="post" action="{{ url_for('members_add') }}">
+          <label>Full name<input name="name" placeholder="Member name" required></label>
+          <label>Email<input name="email" type="email" placeholder="name@example.com"></label>
+          <label>Phone<input name="phone" placeholder="Phone number"></label>
+          <div class="form-action"><button class="btn primary">+ Register member</button></div>
+        </form>
+      </div>
+      <div class="panel"><h3>Member directory</h3><div class="table-wrap"><table><thead><tr><th>Member</th><th>Email</th><th>Phone</th><th>Joined</th><th>Manage</th></tr></thead><tbody>
+        {% for m in members %}<tr><td><strong>{{ m.name }}</strong><small>ID #{{ m.member_id }}</small></td><td>{{ m.email or "—" }}</td><td>{{ m.phone or "—" }}</td><td>{{ m.joined_on }}</td><td>
+          <details><summary class="action-link">Edit</summary><form class="inline-edit" method="post" action="{{ url_for('members_update', member_id=m.member_id) }}"><input name="name" value="{{ m.name }}" required><input name="email" type="email" value="{{ m.email or '' }}"><input name="phone" value="{{ m.phone or '' }}"><button class="btn small primary">Save</button></form></details>
+          <form class="inline-form" method="post" action="{{ url_for('members_delete', member_id=m.member_id) }}" onsubmit="return confirm('Delete this member?')"><button class="text-danger">Delete</button></form>
+        </td></tr>{% else %}<tr><td colspan="5" class="empty">No members registered.</td></tr>{% endfor %}
+      </tbody></table></div></div>
+    </section>
+
+    <section id="circulation" class="section">
+      <div class="section-heading"><div><span class="eyebrow">BORROWING</span><h2>Issue & returns</h2><p class="muted">Issue books and record returns with overdue fines.</p></div></div>
+      <div class="panel">
+        <h3>Issue a book</h3>
+        <form class="form-grid" method="post" action="{{ url_for('issue') }}">
+          <label>Choose book<select name="book_id" required><option value="">Select a book</option>{% for b in books if b.available_copies > 0 %}<option value="{{ b.book_id }}">{{ b.title }} ({{ b.available_copies }} available)</option>{% endfor %}</select></label>
+          <label>Choose member<select name="member_id" required><option value="">Select a member</option>{% for m in members %}<option value="{{ m.member_id }}">{{ m.name }} (#{{ m.member_id }})</option>{% endfor %}</select></label>
+          <label>Loan days<input name="loan_days" type="number" min="1" value="14" required></label>
+          <div class="form-action"><button class="btn primary">Issue book</button></div>
+        </form>
+        <p class="hint">Default loan period: 14 days. Fine: ₹5 per overdue day.</p>
+      </div>
+      <div class="panel"><h3>Active loans</h3><div class="table-wrap"><table><thead><tr><th>Book</th><th>Member</th><th>Issue date</th><th>Due date</th><th>Action</th></tr></thead><tbody>
+        {% for t in active_transactions %}<tr><td><strong>{{ t.book_title }}</strong><small>Transaction #{{ t.txn_id }}</small></td><td>{{ t.member_name }}</td><td>{{ t.issue_date }}</td><td>{{ t.due_date }} {% if t.due_date < today_iso %}<span class="pill warn">Overdue</span>{% endif %}</td><td><form method="post" action="{{ url_for('return_one', txn_id=t.txn_id) }}" onsubmit="return confirm('Record this book as returned?')"><button class="btn small primary">Return</button></form></td></tr>
+        {% else %}<tr><td colspan="5" class="empty">No active loans.</td></tr>{% endfor %}
+      </tbody></table></div></div>
+      <div class="panel"><h3>Transaction history</h3><div class="table-wrap"><table><thead><tr><th>Book</th><th>Member</th><th>Issued</th><th>Returned</th><th>Status</th><th>Fine</th></tr></thead><tbody>
+        {% for t in transactions %}<tr><td>{{ t.book_title }}</td><td>{{ t.member_name }}</td><td>{{ t.issue_date }}</td><td>{{ t.return_date or "—" }}</td><td><span class="pill {{ 'good' if t.status == 'RETURNED' else 'warn' }}">{{ t.status }}</span></td><td>₹{{ "%.2f"|format(t.fine_amount or 0) }}</td></tr>
+        {% else %}<tr><td colspan="6" class="empty">No transactions yet.</td></tr>{% endfor %}
+      </tbody></table></div></div>
+    </section>
+    <footer>LibraryDesk · Library Management System · Python + Flask + SQLite</footer>
+  </main>
+</div>
+<script>document.getElementById("today").textContent = new Date().toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric"});</script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
